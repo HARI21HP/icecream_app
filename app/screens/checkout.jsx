@@ -13,7 +13,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { AuthContext } from '../contexts/AuthContext';
 import { CartContext } from '../contexts/CartContext';
 import { collection, addDoc, getDocs, doc } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { db } from '../config/firebaseConfig';
 import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import Animated, { FadeInDown, SlideInRight } from 'react-native-reanimated';
 
@@ -27,9 +27,16 @@ export default function CheckoutScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      loadAddresses();
+    if (!user) {
+      // Redirect to login if not authenticated
+      Alert.alert(
+        'Authentication Required',
+        'Please login to proceed with checkout',
+        [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
+      );
+      return;
     }
+    loadAddresses();
   }, [user]);
 
   const loadAddresses = async () => {
@@ -52,7 +59,11 @@ export default function CheckoutScreen({ navigation }) {
         setSelectedAddress(addressList[0]);
       }
     } catch (error) {
-      console.error('Error loading addresses:', error);
+      // Silently handle permission errors (user not logged in)
+      if (error.code !== 'permission-denied') {
+        console.error('Error loading addresses:', error);
+        Alert.alert('Error', 'Failed to load addresses. Please try again.');
+      }
     }
   };
 

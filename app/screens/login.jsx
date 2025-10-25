@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { AuthContext } from '../contexts/AuthContext';
 import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 
@@ -23,41 +24,30 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
 
-  // Quick test login
-  const handleTestLogin = async () => {
-    setEmail('test@veeone.com');
-    setPassword('test123');
-    setIsLoading(true);
-    const result = await login('test@veeone.com', 'test123');
-    setIsLoading(false);
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
 
-    if (result.success) {
-      Alert.alert('Success', 'Logged in with test account!', [
-        { 
-          text: 'OK', 
-          onPress: () => navigation.goBack() 
-        }
-      ]);
+  const handleEmailChange = (text) => {
+    setEmail(text);
+    if (text && !validateEmail(text)) {
+      setEmailError('Invalid email format');
     } else {
-      // Test account doesn't exist, show how to create it
-      Alert.alert(
-        'Test Account Not Found', 
-        'Would you like to create a test account?\n\nEmail: test@veeone.com\nPassword: test123',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Create Account', 
-            onPress: () => navigation.navigate('Register')
-          }
-        ]
-      );
+      setEmailError('');
     }
   };
 
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setEmailError('Please enter a valid email address');
       return;
     }
 
@@ -101,23 +91,33 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+    <LinearGradient
+      colors={['#FFE5E5', '#FFF5F0', '#F0F8FF', '#E6F3FF']}
+      style={styles.gradient}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+    >
+      <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
         >
-          <Animated.View
-            entering={FadeInDown.duration(600).springify()}
-            style={styles.header}
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
           >
-            <FontAwesome name="ice-cream" size={80} color={COLORS.primary} />
-            <Text style={styles.title}>Welcome Back!</Text>
-            <Text style={styles.subtitle}>Sign in to continue</Text>
-          </Animated.View>
+            <Animated.View
+              entering={FadeInDown.duration(600).springify()}
+              style={styles.header}
+            >
+              <View style={styles.logoContainer}>
+                <View style={styles.logoBadge}>
+                  <FontAwesome name="user" size={50} color="#FFF" />
+                </View>
+              </View>
+              <Text style={styles.title}>Welcome Back!</Text>
+              <Text style={styles.subtitle}>Sign in to continue shopping</Text>
+            </Animated.View>
 
           <Animated.View
             entering={FadeInUp.delay(200).springify()}
@@ -127,20 +127,23 @@ export default function LoginScreen({ navigation }) {
               <FontAwesome
                 name="envelope"
                 size={20}
-                color={COLORS.textLight}
+                color={emailError ? COLORS.error : COLORS.textLight}
                 style={styles.inputIcon}
               />
               <TextInput
-                style={styles.input}
+                style={[styles.input, emailError && styles.inputError]}
                 placeholder="Email"
                 placeholderTextColor={COLORS.textMuted}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={handleEmailChange}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
               />
             </View>
+            {emailError ? (
+              <Text style={styles.errorText}>{emailError}</Text>
+            ) : null}
 
             <View style={styles.inputContainer}>
               <FontAwesome
@@ -190,17 +193,6 @@ export default function LoginScreen({ navigation }) {
               )}
             </TouchableOpacity>
 
-            {/* Quick Test Login Button */}
-            <TouchableOpacity
-              style={styles.testLoginButton}
-              onPress={handleTestLogin}
-              disabled={isLoading || loading}
-              activeOpacity={0.8}
-            >
-              <FontAwesome name="flash" size={16} color={COLORS.primary} />
-              <Text style={styles.testLoginButtonText}>Quick Test Login</Text>
-            </TouchableOpacity>
-
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
               <Text style={styles.dividerText}>OR</Text>
@@ -220,13 +212,17 @@ export default function LoginScreen({ navigation }) {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  gradient: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: 'transparent',
   },
   scrollContent: {
     flexGrow: 1,
@@ -272,6 +268,16 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.md,
     color: COLORS.text,
     fontWeight: TYPOGRAPHY.medium,
+  },
+  inputError: {
+    borderColor: COLORS.error,
+  },
+  errorText: {
+    color: COLORS.error,
+    fontSize: TYPOGRAPHY.sm,
+    marginTop: SPACING.xs,
+    marginLeft: SPACING.sm,
+    marginBottom: SPACING.xs,
   },
   eyeIcon: {
     padding: SPACING.xs,
@@ -346,5 +352,22 @@ const styles = StyleSheet.create({
   registerTextBold: {
     color: COLORS.primary,
     fontWeight: TYPOGRAPHY.bold,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
+  },
+  logoBadge: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
 });

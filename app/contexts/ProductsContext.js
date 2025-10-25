@@ -1,6 +1,6 @@
 import React, { createContext, useMemo, useState, useCallback, useEffect } from 'react';
 import { collection, getDocs, doc, updateDoc, addDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { db } from '../config/firebaseConfig';
 
 export const ProductsContext = createContext();
 
@@ -144,6 +144,7 @@ export function ProductsProvider({ children }) {
       loading,
       error,
       fetchProducts,
+      refreshProducts: fetchProducts, // Alias for compatibility
       updateProductPrice,
       setProductStock,
       updateProductFields,

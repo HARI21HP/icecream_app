@@ -18,6 +18,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CartContext } from "../contexts/CartContext";
 import { AuthContext } from "../contexts/AuthContext";
+import { FavoritesContext } from "../contexts/FavoritesContext";
 import { FontAwesome } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import BrandHeader from "../components/BrandHeader";
@@ -67,6 +68,7 @@ const Screen = () => {
   const navigation = useNavigation();
   const { user } = useContext(AuthContext);
   const { addToCart, cartItems } = useContext(CartContext);
+  const { toggleFavorite, isFavorite } = useContext(FavoritesContext);
   const [quantities, setQuantities] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
   const [sortAsc, setSortAsc] = useState(true);
@@ -156,6 +158,20 @@ const Screen = () => {
               }}
             />
           </TouchableOpacity>
+          
+          {/* Favorite Heart Button - Outside image, top right corner */}
+          <TouchableOpacity
+            style={styles.favoriteButton}
+            onPress={() => toggleFavorite(item.id)}
+            activeOpacity={0.7}
+          >
+            <FontAwesome
+              name={isFavorite(item.id) ? "heart" : "heart-o"}
+              size={18}
+              color={isFavorite(item.id) ? "#FF0000" : COLORS.textMuted}
+            />
+          </TouchableOpacity>
+          
           <Text
             style={[
               styles.name,
@@ -286,130 +302,58 @@ const Screen = () => {
   return (
     <SafeAreaView
       style={styles.screen}
-      edges={["top", "left", "right", "bottom"]}
+      edges={["top", "left", "right"]}
     >
       <StatusBar barStyle={"dark-content"} />
 
-      {/* Top section with integrated search */}
-      <Animated.View 
-        entering={FadeInDown.duration(600)}
-        style={styles.header}
-      >
+      {/* Sticky Header - Search & Sorting */}
+      <View style={styles.stickyHeader}>
         <BrandHeader 
           showSearch={true}
           showCart={true}
           searchValue={searchQuery}
           onSearchChange={setSearchQuery}
         />
-      </Animated.View>
-
-      {/* Banner Carousel */}
-      <Animated.View 
-        entering={ZoomIn.delay(200).springify()}
-        style={styles.carouselContainer}
-      >
-        <Carousel
-          loop
-          width={width - SPACING.lg * 2}
-          height={140}
-          autoPlay={true}
-          autoPlayInterval={3000}
-          data={BANNERS}
-          scrollAnimationDuration={800}
-          renderItem={({ item, index }) => (
-            <LinearGradient
-              colors={item.colors}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.banner}
-            >
-              <View style={styles.bannerContent}>
-                <Text style={styles.bannerTitle}>{item.title}</Text>
-                <Text style={styles.bannerSubtitle}>{item.subtitle}</Text>
-              </View>
-            </LinearGradient>
-          )}
-        />
-      </Animated.View>
-
-      {/* Categories */}
-      <Animated.View 
-        entering={SlideInRight.delay(300).springify()}
-        style={styles.categoryContainer}
-      >
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {categories.map((cat, idx) => (
-            <TouchableOpacity
-              key={cat}
-              onPress={() => setSelectedCategory(cat)}
-              activeOpacity={0.7}
+        
+        {/* Sorting & Filters */}
+        <View style={styles.filtersRow}>
+          <TouchableOpacity
+            style={styles.filterPill}
+            onPress={() => setSortAsc((s) => !s)}
+            activeOpacity={0.7}
+          >
+            <FontAwesome
+              name={sortAsc ? "sort-amount-asc" : "sort-amount-desc"}
+              size={14}
+              color={COLORS.text}
+            />
+            <Text style={styles.filterPillText}>
+              {sortAsc ? "Price: Low to High" : "Price: High to Low"}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filterPill, hideOutOfStock && styles.filterPillActive]}
+            onPress={() => setHideOutOfStock((v) => !v)}
+            activeOpacity={0.7}
+          >
+            <FontAwesome
+              name={hideOutOfStock ? "check-square" : "square-o"}
+              size={14}
+              color={hideOutOfStock ? COLORS.textInverse : COLORS.text}
+            />
+            <Text
               style={[
-                styles.categoryButton,
-                selectedCategory === cat && styles.categoryButtonActive,
+                styles.filterPillText,
+                hideOutOfStock && styles.filterPillTextActive,
               ]}
             >
-              <Text
-                style={[
-                  styles.categoryText,
-                  selectedCategory === cat && styles.categoryTextActive,
-                ]}
-              >
-                {cat}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </Animated.View>
-
-      {/* Filters */}
-      <Animated.View 
-        entering={FadeInUp.delay(400)}
-        style={styles.filtersRow}
-      >
-        <TouchableOpacity
-          style={styles.filterPill}
-          onPress={() => setSortAsc((s) => !s)}
-          activeOpacity={0.7}
-        >
-          <FontAwesome
-            name={sortAsc ? "sort-amount-asc" : "sort-amount-desc"}
-            size={14}
-            color="#333"
-          />
-          <Text style={styles.filterPillText}>
-            {sortAsc ? "Price: Low to High" : "Price: High to Low"}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.filterPill, hideOutOfStock && styles.filterPillActive]}
-          onPress={() => setHideOutOfStock((v) => !v)}
-          activeOpacity={0.7}
-        >
-          <FontAwesome
-            name={hideOutOfStock ? "eye-slash" : "eye"}
-            size={14}
-            color={hideOutOfStock ? "#fff" : "#333"}
-          />
-          <Text
-            style={[
-              styles.filterPillText,
-              hideOutOfStock && styles.filterPillTextActive,
-            ]}
-          >
-            {hideOutOfStock ? "Hidden Out of Stock" : "Hide Out of Stock"}
-          </Text>
-        </TouchableOpacity>
-      </Animated.View>
-      
-      {/* Featured Products Header */}
-      <View style={styles.featuredHeader}>
-        <Text style={styles.featuredTitle}>
-          {selectedCategory === "All" ? "🌟 All Products" : `${selectedCategory}`}
-        </Text>
-        <Text style={styles.countText}>{filteredIceCreams.length} items</Text>
+              In Stock Only
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Grid */}
+      {/* Full Screen Scrollable Content */}
       <FlatList
         data={filteredIceCreams}
         keyExtractor={(item, index) => item.id || index.toString()}
@@ -417,7 +361,76 @@ const Screen = () => {
         numColumns={columns}
         key={columns}
         columnWrapperStyle={columns > 1 ? styles.rowSpacing : undefined}
-        contentContainerStyle={{ padding: 10, paddingBottom: 20 }}
+        contentContainerStyle={{ paddingBottom: SPACING.xl }}
+        showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        initialNumToRender={10}
+        windowSize={10}
+        ListHeaderComponent={
+          <>
+            {/* Banner Carousel */}
+            <View style={styles.carouselContainer}>
+              <Carousel
+                loop
+                width={width - SPACING.md * 2}
+                height={120}
+                autoPlay={true}
+                autoPlayInterval={3000}
+                data={BANNERS}
+                scrollAnimationDuration={800}
+                renderItem={({ item }) => (
+                  <LinearGradient
+                    colors={item.colors}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.banner}
+                  >
+                    <View style={styles.bannerContent}>
+                      <Text style={styles.bannerTitle}>{item.title}</Text>
+                      <Text style={styles.bannerSubtitle}>{item.subtitle}</Text>
+                    </View>
+                  </LinearGradient>
+                )}
+              />
+            </View>
+
+            {/* Categories */}
+            <View style={styles.categoryContainer}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {categories.map((cat) => (
+                  <TouchableOpacity
+                    key={cat}
+                    onPress={() => setSelectedCategory(cat)}
+                    activeOpacity={0.7}
+                    style={[
+                      styles.categoryButton,
+                      selectedCategory === cat && styles.categoryButtonActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.categoryText,
+                        selectedCategory === cat && styles.categoryTextActive,
+                      ]}
+                    >
+                      {cat}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* Products Header */}
+            <View style={styles.featuredHeader}>
+              <Text style={styles.featuredTitle}>
+                {selectedCategory === "All" ? "All Products" : selectedCategory}
+              </Text>
+              <Text style={styles.countText}>{filteredIceCreams.length} items</Text>
+            </View>
+          </>
+        }
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
             <FontAwesome name="search" size={64} color={COLORS.textLight} />
@@ -441,34 +454,44 @@ const styles = StyleSheet.create({
     flex: 1, 
     backgroundColor: COLORS.background 
   },
+  stickyHeader: {
+    backgroundColor: COLORS.surface,
+    paddingBottom: SPACING.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
   header: { 
     padding: SPACING.md, 
     backgroundColor: COLORS.surface 
   },
   carouselContainer: {
-    marginVertical: SPACING.md,
-    alignItems: 'center',
+    marginVertical: SPACING.sm,
+    marginHorizontal: SPACING.md,
   },
   banner: {
     width: '100%',
-    height: 140,
-    borderRadius: BORDER_RADIUS.xl,
+    height: 120,
+    borderRadius: BORDER_RADIUS.lg,
     justifyContent: 'center',
     overflow: 'hidden',
-    ...SHADOWS.md,
   },
   bannerContent: {
-    paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
   },
   bannerTitle: {
-    fontSize: TYPOGRAPHY.xl,
+    fontSize: TYPOGRAPHY.lg,
     fontWeight: TYPOGRAPHY.bold,
     color: COLORS.text,
     marginBottom: SPACING.xs,
   },
   bannerSubtitle: {
-    fontSize: TYPOGRAPHY.md,
+    fontSize: TYPOGRAPHY.sm,
     color: COLORS.textSecondary,
     fontWeight: TYPOGRAPHY.medium,
   },
@@ -489,60 +512,68 @@ const styles = StyleSheet.create({
   },
   icon: { marginRight: SPACING.sm },
   categoryContainer: { 
-    paddingVertical: SPACING.md, 
-    paddingHorizontal: SPACING.sm, 
-    backgroundColor: COLORS.surface 
+    paddingVertical: SPACING.sm, 
+    paddingHorizontal: SPACING.md,
+    backgroundColor: COLORS.background,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
   categoryButton: {
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
-    backgroundColor: COLORS.background,
-    borderRadius: BORDER_RADIUS.full,
-    marginHorizontal: SPACING.xs,
-    ...SHADOWS.sm,
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.md,
+    marginRight: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   categoryButtonActive: { 
     backgroundColor: COLORS.primary,
-    shadowColor: COLORS.primary,
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 3,
+    borderColor: COLORS.primary,
   },
   categoryText: { 
-    color: COLORS.textLight, 
+    color: COLORS.text, 
     fontSize: TYPOGRAPHY.sm, 
     fontWeight: TYPOGRAPHY.semibold 
   },
-  categoryTextActive: { color: COLORS.textInverse },
+  categoryTextActive: { 
+    color: COLORS.textInverse,
+    fontWeight: TYPOGRAPHY.bold,
+  },
   filtersRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: SPACING.md,
-    marginBottom: SPACING.sm,
-    marginTop: SPACING.xs,
+    paddingVertical: SPACING.sm,
+    backgroundColor: COLORS.surface,
+    gap: SPACING.sm,
   },
   filterPill: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.background,
-    paddingVertical: SPACING.xs + 2,
-    paddingHorizontal: SPACING.sm + 2,
-    borderRadius: BORDER_RADIUS.full,
-    marginRight: SPACING.xs,
-    ...SHADOWS.sm,
+    justifyContent: "center",
+    backgroundColor: COLORS.backgroundSecondary,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   filterPillActive: { 
     backgroundColor: COLORS.primary,
-    shadowColor: COLORS.primary,
-    shadowOpacity: 0.3,
+    borderColor: COLORS.primary,
   },
   filterPillText: { 
     marginLeft: SPACING.xs, 
     color: COLORS.text, 
-    fontSize: TYPOGRAPHY.xs, 
-    fontWeight: TYPOGRAPHY.medium 
+    fontSize: TYPOGRAPHY.sm, 
+    fontWeight: TYPOGRAPHY.semibold 
   },
-  filterPillTextActive: { color: COLORS.textInverse },
+  filterPillTextActive: { 
+    color: COLORS.textInverse,
+    fontWeight: TYPOGRAPHY.bold,
+  },
   featuredHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -581,19 +612,19 @@ const styles = StyleSheet.create({
   },
   rowSpacing: { justifyContent: "space-between" },
   card: {
-    backgroundColor: '#ffffff',
-    borderRadius: BORDER_RADIUS.xl,
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
-    margin: SPACING.xs + 2,
+    margin: SPACING.xs,
     alignItems: "center",
     flex: 1,
     borderWidth: 1,
     borderColor: COLORS.border,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
   imageContainer: {
     backgroundColor: COLORS.background,
@@ -714,5 +745,21 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.sm,
     fontWeight: TYPOGRAPHY.bold,
     letterSpacing: 0.5,
+  },
+  favoriteButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
 });

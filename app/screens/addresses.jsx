@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
 import { AuthContext } from '../contexts/AuthContext';
 import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { db } from '../config/firebaseConfig';
 import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 
@@ -37,9 +37,16 @@ export default function AddressesScreen({ navigation }) {
   });
 
   useEffect(() => {
-    if (user) {
-      loadAddresses();
+    if (!user) {
+      // Redirect to login if not authenticated
+      Alert.alert(
+        'Authentication Required',
+        'Please login to manage your addresses',
+        [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
+      );
+      return;
     }
+    loadAddresses();
   }, [user]);
 
   const loadAddresses = async () => {
@@ -55,8 +62,11 @@ export default function AddressesScreen({ navigation }) {
       }));
       setAddresses(addressList);
     } catch (error) {
-      console.error('Error loading addresses:', error);
-      Alert.alert('Error', 'Failed to load addresses');
+      // Silently handle permission errors (user not logged in)
+      if (error.code !== 'permission-denied') {
+        console.error('Error loading addresses:', error);
+        Alert.alert('Error', 'Failed to load addresses. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -87,6 +97,16 @@ export default function AddressesScreen({ navigation }) {
   };
 
   const handleSave = async () => {
+    // Check authentication first
+    if (!user) {
+      Alert.alert(
+        'Authentication Required',
+        'Please login to save addresses',
+        [{ text: 'Login', onPress: () => navigation.navigate('Login') }]
+      );
+      return;
+    }
+
     // Validation
     if (!formData.name || !formData.phone || !formData.street || !formData.city || !formData.state || !formData.pin) {
       Alert.alert('Error', 'Please fill all fields');
@@ -135,7 +155,29 @@ export default function AddressesScreen({ navigation }) {
       loadAddresses();
     } catch (error) {
       console.error('Error saving address:', error);
-      Alert.alert('Error', 'Failed to save address');
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      
+      // Better error message based on error type
+      if (error.code === 'permission-denied') {
+        Alert.alert(
+          'Permission Denied', 
+          'You do not have permission to save addresses. Please ensure you are logged in and Firestore rules are configured.'
+        );
+      } else if (error.code === 'unauthenticated') {
+        Alert.alert(
+          'Authentication Required', 
+          'Please login to save addresses',
+          [{ text: 'Login', onPress: () => navigation.navigate('Login') }]
+        );
+      } else if (error.code === 'not-found') {
+        Alert.alert('Error', 'User collection not found. Please contact support.');
+      } else {
+        Alert.alert(
+          'Error Saving Address', 
+          `${error.message || 'Failed to save address. Please try again.'}\n\nError code: ${error.code || 'unknown'}`
+        );
+      }
     } finally {
       setLoading(false);
     }

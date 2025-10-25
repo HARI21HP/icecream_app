@@ -1,6 +1,4 @@
-// firebaseConfig.js
-
-// Import Firebase core + modules
+// Firebase Configuration - Centralized config file
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
@@ -12,15 +10,16 @@ import {
 import { getStorage } from "firebase/storage";
 import { initializeFirestore } from "firebase/firestore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 
-// ✅ Your Firebase project configuration (VEE-ONE)
+// Firebase project configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyArHAvaY3IQflhNLY8ltkYgUX0JQQIxF8c",
-  authDomain: "vee-one-7ec61.firebaseapp.com",
-  projectId: "vee-one-7ec61",
-  storageBucket: "vee-one-7ec61.appspot.com",
-  messagingSenderId: "144639120405",
-  appId: "1:144639120405:web:YOUR_APP_ID_HERE", // 🔹 Replace with actual App ID from Firebase Console
+  apiKey: "AIzaSyDWUQUTwTMWOtZbu2pWWNNrM8F-irgBmjk",
+  authDomain: "vee-one-33b07.firebaseapp.com",
+  projectId: "vee-one-33b07",
+  storageBucket: "vee-one-33b07.appspot.com",
+  messagingSenderId: "159982977729",
+  appId: "1:159982977729:web:6a0c3c6b0a33a88d770a40"
 };
 
 // Initialize Firebase app (only once)
@@ -29,7 +28,7 @@ const app = initializeApp(firebaseConfig);
 // Initialize Auth with platform-specific persistence
 let auth;
 try {
-  if (typeof window !== "undefined") {
+  if (Platform.OS === "web") {
     // Web (Browser or Expo Web)
     auth = getAuth(app);
     setPersistence(auth, browserLocalPersistence).catch(() => {});
@@ -40,7 +39,7 @@ try {
     });
   }
 } catch (error) {
-  // If already initialized
+  // If auth is already initialized, get the existing instance
   auth = getAuth(app);
 }
 
@@ -53,6 +52,6 @@ const db = initializeFirestore(app, {
 // Initialize Storage
 const storage = getStorage(app);
 
-// Export everything
-export { auth, db, storage };
+// Export instances (import auth functions directly from firebase/auth in components)
+export { app, auth, db, storage };
 export default app;

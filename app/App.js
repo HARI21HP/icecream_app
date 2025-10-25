@@ -30,6 +30,7 @@ import OrderTrackingScreen from "./screens/orderTracking";
 import { CartProvider } from "./contexts/CartContext";
 import { ProductsProvider } from "./contexts/ProductsContext";
 import { AuthProvider, AuthContext } from "./contexts/AuthContext";
+import { FavoritesProvider } from "./contexts/FavoritesContext";
 import { COLORS, SPACING, TYPOGRAPHY } from './constants/theme';
 
 // ---- Theme ----
@@ -233,9 +234,11 @@ export default function App() {
       <SafeAreaProvider>
         <AuthProvider>
           <ProductsProvider>
-            <CartProvider>
-              <Navigation />
-            </CartProvider>
+            <FavoritesProvider>
+              <CartProvider>
+                <Navigation />
+              </CartProvider>
+            </FavoritesProvider>
           </ProductsProvider>
         </AuthProvider>
       </SafeAreaProvider>

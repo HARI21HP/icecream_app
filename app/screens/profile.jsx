@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,10 +15,45 @@ import * as ImagePicker from 'expo-image-picker';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { AuthContext } from '../contexts/AuthContext';
 import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../config/firebaseConfig';
+
+// Admin email - must match the one in admin.jsx
+const ADMIN_EMAIL = 'hariprakashpc@gmail.com';
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout, updateProfilePicture } = useContext(AuthContext);
   const [uploading, setUploading] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    checkIfAdmin();
+  }, [user]);
+
+  const checkIfAdmin = async () => {
+    if (!user) {
+      setIsAdmin(false);
+      return;
+    }
+
+    try {
+      // Check if user email matches admin email (case-insensitive)
+      if (user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+        setIsAdmin(true);
+        return;
+      }
+
+      // Also check Firestore for admin role
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists() && userDoc.data().role === 'admin') {
+        setIsAdmin(true);
+      } else {
+        setIsAdmin(false);
+      }
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+    }
+  };
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -84,16 +119,6 @@ export default function ProfileScreen({ navigation }) {
             activeOpacity={0.8}
           >
             <Text style={styles.loginButtonText}>Login / Sign Up</Text>
-          </TouchableOpacity>
-          
-          {/* Admin Panel Access - Available without login */}
-          <TouchableOpacity
-            style={styles.adminButtonGuest}
-            onPress={() => navigation.navigate('Admin')}
-            activeOpacity={0.8}
-          >
-            <FontAwesome name="database" size={18} color={COLORS.accent} />
-            <Text style={styles.adminButtonGuestText}>Admin Panel</Text>
           </TouchableOpacity>
         </Animated.View>
       </SafeAreaView>
@@ -178,17 +203,21 @@ export default function ProfileScreen({ navigation }) {
           entering={FadeInDown.delay(400).springify()}
           style={styles.actionsCard}
         >
-          <TouchableOpacity 
-            style={styles.actionButton} 
-            onPress={() => navigation.navigate('Admin')}
-            activeOpacity={0.7}
-          >
-            <FontAwesome name="database" size={20} color={COLORS.accent} />
-            <Text style={styles.actionText}>Admin Panel</Text>
-            <FontAwesome name="chevron-right" size={16} color={COLORS.textMuted} />
-          </TouchableOpacity>
+          {isAdmin && (
+            <>
+              <TouchableOpacity 
+                style={styles.actionButton} 
+                onPress={() => navigation.navigate('Admin')}
+                activeOpacity={0.7}
+              >
+                <FontAwesome name="database" size={20} color={COLORS.accent} />
+                <Text style={styles.actionText}>Admin Panel</Text>
+                <FontAwesome name="chevron-right" size={16} color={COLORS.textMuted} />
+              </TouchableOpacity>
 
-          <View style={styles.divider} />
+              <View style={styles.divider} />
+            </>
+          )}
 
           <TouchableOpacity 
             style={styles.actionButton}

@@ -4,11 +4,13 @@ import {
   signInWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged,
-  updateProfile
+  updateProfile,
+  GoogleAuthProvider,
+  signInWithCredential
 } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { auth, storage, db } from '../config/firebase';
+import { auth, storage, db } from '../config/firebaseConfig';
 
 export const AuthContext = createContext();
 
@@ -93,6 +95,20 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Google Sign-In (Expo)
+  const loginWithGoogle = async (idToken) => {
+    try {
+      setLoading(true);
+      const credential = GoogleAuthProvider.credential(idToken);
+      await signInWithCredential(auth, credential);
+      setLoading(false);
+      return { success: true };
+    } catch (error) {
+      setLoading(false);
+      return { success: false, error: error.message };
+    }
+  };
+
   // Logout
   const logout = async () => {
     try {
@@ -130,7 +146,8 @@ export function AuthProvider({ children }) {
       loading, 
       login, 
       signUp, 
-      logout, 
+      logout,
+      loginWithGoogle,
       updateProfilePicture 
     }), 
     [user, loading]
@@ -138,4 +155,3 @@ export function AuthProvider({ children }) {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-

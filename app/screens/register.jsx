@@ -28,6 +28,21 @@ export default function RegisterScreen({ navigation }) {
   const [profileImage, setProfileImage] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
+
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handleEmailChange = (text) => {
+    setEmail(text);
+    if (text && !validateEmail(text)) {
+      setEmailError('Invalid email format');
+    } else {
+      setEmailError('');
+    }
+  };
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -52,6 +67,11 @@ export default function RegisterScreen({ navigation }) {
   const handleRegister = async () => {
     if (!name || !email || !password) {
       Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setEmailError('Please enter a valid email address');
       return;
     }
 
@@ -149,20 +169,23 @@ export default function RegisterScreen({ navigation }) {
               <FontAwesome
                 name="envelope"
                 size={20}
-                color={COLORS.textLight}
+                color={emailError ? COLORS.error : COLORS.textLight}
                 style={styles.inputIcon}
               />
               <TextInput
-                style={styles.input}
+                style={[styles.input, emailError && styles.inputError]}
                 placeholder="Email"
                 placeholderTextColor={COLORS.textMuted}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={handleEmailChange}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
               />
             </View>
+            {emailError ? (
+              <Text style={styles.errorText}>{emailError}</Text>
+            ) : null}
 
             {/* Password Input */}
             <View style={styles.inputContainer}>
@@ -340,6 +363,16 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.md,
     color: COLORS.text,
     fontWeight: TYPOGRAPHY.medium,
+  },
+  inputError: {
+    borderColor: COLORS.error,
+  },
+  errorText: {
+    color: COLORS.error,
+    fontSize: TYPOGRAPHY.sm,
+    marginTop: SPACING.xs,
+    marginLeft: SPACING.sm,
+    marginBottom: SPACING.xs,
   },
   eyeIcon: {
     padding: SPACING.xs,

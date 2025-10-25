@@ -1,6 +1,6 @@
 // Script to seed ice cream products to Firestore
 import { collection, addDoc, setDoc, doc } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { db } from '../config/firebaseConfig';
 
 const iceCreamProducts = [
   {
