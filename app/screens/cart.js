@@ -11,9 +11,19 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CartContext } from "../contexts/CartContext";
+import { AuthContext } from "../contexts/AuthContext";
 import { FontAwesome } from "@expo/vector-icons";
+import Animated, { 
+  FadeInDown, 
+  FadeInUp,
+  Layout,
+  SlideInLeft,
+  ZoomIn,
+} from 'react-native-reanimated';
+import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 
 export default function CartScreen({ navigation }) {
+  const { user } = useContext(AuthContext);
   const {
     cartItems,
     removeFromCart,
@@ -36,6 +46,27 @@ export default function CartScreen({ navigation }) {
   };
 
   const handleEmail = async () => {
+    // Check if user is logged in before checkout
+    if (!user) {
+      Alert.alert(
+        "🔒 Login to Checkout",
+        "Please login or create an account to complete your purchase and track your orders.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { 
+            text: "Login", 
+            onPress: () => navigation.navigate("Login"),
+            style: "default"
+          },
+          { 
+            text: "Sign Up", 
+            onPress: () => navigation.navigate("Register")
+          }
+        ]
+      );
+      return;
+    }
+
     const subject = encodeURIComponent("New Ice Cream Order");
     const body = encodeURIComponent(buildOrderText());
     const to = "owner@example.com"; // Change to your email
@@ -45,13 +76,34 @@ export default function CartScreen({ navigation }) {
     if (can) {
       await Linking.openURL(url);
       clearCart();
-      navigation.navigate("MainTabs", { screen: "Home" });
+      navigation.navigate("MainApp", { screen: "Home" });
     } else {
       Alert.alert("Error", "No email app available");
     }
   };
 
   const handleWhatsApp = async () => {
+    // Check if user is logged in before checkout
+    if (!user) {
+      Alert.alert(
+        "🔒 Login to Checkout",
+        "Please login or create an account to complete your purchase and track your orders.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { 
+            text: "Login", 
+            onPress: () => navigation.navigate("Login"),
+            style: "default"
+          },
+          { 
+            text: "Sign Up", 
+            onPress: () => navigation.navigate("Register")
+          }
+        ]
+      );
+      return;
+    }
+
     const phone = "917418090583"; // Change to your WhatsApp number with country code
     const text = encodeURIComponent(buildOrderText());
     const url = `https://wa.me/${phone}?text=${text}`;
@@ -60,7 +112,7 @@ export default function CartScreen({ navigation }) {
     if (can) {
       await Linking.openURL(url);
       clearCart();
-      navigation.navigate("MainTabs", { screen: "Home" });
+      navigation.navigate("MainApp", { screen: "Home" });
     } else {
       Alert.alert("Error", "Unable to open WhatsApp");
     }
@@ -68,22 +120,31 @@ export default function CartScreen({ navigation }) {
 
   if (cartItems.length === 0) {
     return (
-      <SafeAreaView style={{ flex: 1 }}>
-        <View style={styles.emptyContainer}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
+        <Animated.View 
+          entering={ZoomIn.duration(600).springify()}
+          style={styles.emptyContainer}
+        >
+          <FontAwesome name="shopping-cart" size={80} color={COLORS.borderLight} />
           <Text style={styles.emptyText}>Your cart is empty</Text>
-        </View>
+          <Text style={styles.emptySubtext}>Add some delicious ice cream!</Text>
+        </Animated.View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
       <View style={styles.container}>
         <FlatList
           data={cartItems}
           keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
+          renderItem={({ item, index }) => (
+            <Animated.View 
+              entering={FadeInDown.delay(index * 100).springify()}
+              layout={Layout.springify()}
+              style={styles.card}
+            >
               <Image
                 source={
                   item.imageUrl
@@ -99,6 +160,7 @@ export default function CartScreen({ navigation }) {
                   <TouchableOpacity
                     style={styles.qtyButton}
                     onPress={() => decrementQuantity(item.id)}
+                    activeOpacity={0.7}
                   >
                     <Text style={styles.qtyButtonText}>-</Text>
                   </TouchableOpacity>
@@ -106,18 +168,25 @@ export default function CartScreen({ navigation }) {
                   <TouchableOpacity
                     style={styles.qtyButton}
                     onPress={() => addToCart(item, 1)}
+                    activeOpacity={0.7}
                   >
                     <Text style={styles.qtyButtonText}>+</Text>
                   </TouchableOpacity>
                 </View>
               </View>
-              <TouchableOpacity onPress={() => removeFromCart(item.id)}>
+              <TouchableOpacity 
+                onPress={() => removeFromCart(item.id)}
+                activeOpacity={0.7}
+              >
                 <FontAwesome name="trash" size={20} color="#d11a2a" />
               </TouchableOpacity>
-            </View>
+            </Animated.View>
           )}
           ListFooterComponent={
-            <View style={styles.summaryCard}>
+            <Animated.View 
+              entering={FadeInUp.delay(300).springify()}
+              style={styles.summaryCard}
+            >
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Subtotal</Text>
                 <Text style={styles.summaryValue}>₹{getTotalPrice()}</Text>
@@ -143,26 +212,65 @@ export default function CartScreen({ navigation }) {
                   Total
                 </Text>
                 <Text
-                  style={[styles.summaryValue, { fontWeight: "bold" }]}
+                  style={[styles.summaryValue, { fontWeight: "bold", fontSize: 18 }]}
                 >
                   ₹{getTotalPrice()}
                 </Text>
               </View>
-              <View style={[styles.actionsRow, { marginTop: 12 }]}>
+              
+              {/* Primary Checkout Button */}
+              <TouchableOpacity
+                style={styles.checkoutButton}
+                onPress={() => {
+                  if (!user) {
+                    Alert.alert(
+                      "🔒 Login to Checkout",
+                      "Please login or create an account to complete your purchase and track your orders.",
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        { 
+                          text: "Login", 
+                          onPress: () => navigation.navigate("Login"),
+                          style: "default"
+                        },
+                        { 
+                          text: "Sign Up", 
+                          onPress: () => navigation.navigate("Register")
+                        }
+                      ]
+                    );
+                    return;
+                  }
+                  navigation.navigate("Checkout");
+                }}
+                activeOpacity={0.8}
+              >
+                <FontAwesome name="lock" size={18} color="#fff" />
+                <Text style={styles.checkoutButtonText}>Proceed to Checkout</Text>
+                <FontAwesome name="arrow-right" size={18} color="#fff" />
+              </TouchableOpacity>
+              
+              <Text style={styles.orText}>OR</Text>
+              
+              <View style={[styles.actionsRow, { marginTop: 8 }]}>
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: "#e85a71" }]}
                   onPress={handleEmail}
+                  activeOpacity={0.8}
                 >
+                  <FontAwesome name="envelope" size={16} color="#fff" />
                   <Text style={styles.actionText}>Email Order</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: "#25D366" }]}
                   onPress={handleWhatsApp}
+                  activeOpacity={0.8}
                 >
-                  <Text style={styles.actionText}>WhatsApp Order</Text>
+                  <FontAwesome name="whatsapp" size={16} color="#fff" />
+                  <Text style={styles.actionText}>WhatsApp</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            </Animated.View>
           }
         />
       </View>
@@ -171,72 +279,141 @@ export default function CartScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: "#fff" },
+  container: { 
+    flex: 1, 
+    padding: SPACING.md, 
+    backgroundColor: COLORS.background 
+  },
   card: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
-    backgroundColor: "#fdfdfd",
-    marginBottom: 12,
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 2,
+    padding: SPACING.md,
+    backgroundColor: COLORS.surface,
+    marginBottom: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    ...SHADOWS.md,
   },
-  image: { width: 64, height: 64, borderRadius: 8, resizeMode: "cover" },
+  image: { 
+    width: 70, 
+    height: 70, 
+    borderRadius: BORDER_RADIUS.md, 
+    resizeMode: "cover",
+  },
   qtyRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 8,
+    marginTop: SPACING.sm,
   },
   qtyButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    backgroundColor: "#eee",
+    width: 32,
+    height: 32,
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: COLORS.background,
     justifyContent: "center",
     alignItems: "center",
   },
-  qtyButtonText: { fontWeight: "bold", color: "#333" },
-  qtyValue: {
-    marginHorizontal: 10,
-    minWidth: 24,
-    textAlign: "center",
-    fontWeight: "bold",
+  qtyButtonText: { 
+    fontWeight: TYPOGRAPHY.bold, 
+    color: COLORS.text, 
+    fontSize: TYPOGRAPHY.md 
   },
-  name: { fontSize: 16, fontWeight: "bold" },
-  price: { fontSize: 14, color: "#555" },
+  qtyValue: {
+    marginHorizontal: SPACING.md,
+    minWidth: 28,
+    textAlign: "center",
+    fontWeight: TYPOGRAPHY.bold,
+    fontSize: TYPOGRAPHY.md,
+  },
+  name: { 
+    fontSize: TYPOGRAPHY.md, 
+    fontWeight: TYPOGRAPHY.bold, 
+    color: COLORS.text 
+  },
+  price: { 
+    fontSize: TYPOGRAPHY.md, 
+    color: COLORS.primary,
+    fontWeight: TYPOGRAPHY.semibold,
+    marginTop: 2,
+  },
   summaryCard: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 12,
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 1 },
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    marginTop: SPACING.sm,
+    ...SHADOWS.md,
   },
   summaryRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginVertical: 4,
+    marginVertical: SPACING.xs + 2,
   },
-  summaryLabel: { color: "#555" },
-  summaryValue: { color: "#111" },
-  actionsRow: { flexDirection: "row", gap: 12 },
+  summaryLabel: { 
+    color: COLORS.textLight,
+    fontSize: TYPOGRAPHY.md,
+  },
+  summaryValue: { 
+    color: COLORS.text,
+    fontSize: TYPOGRAPHY.md,
+    fontWeight: TYPOGRAPHY.semibold,
+  },
+  checkoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    paddingVertical: SPACING.md + 4,
+    borderRadius: BORDER_RADIUS.lg,
+    marginTop: SPACING.lg,
+    gap: SPACING.sm,
+    ...SHADOWS.lg,
+  },
+  checkoutButtonText: {
+    color: '#fff',
+    fontSize: TYPOGRAPHY.lg,
+    fontWeight: TYPOGRAPHY.bold,
+  },
+  orText: {
+    textAlign: 'center',
+    color: COLORS.textLight,
+    fontSize: TYPOGRAPHY.sm,
+    marginTop: SPACING.md,
+    fontWeight: TYPOGRAPHY.medium,
+  },
+  actionsRow: { 
+    flexDirection: "row", 
+    gap: SPACING.md,
+    marginTop: SPACING.md,
+  },
   actionBtn: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
+    flexDirection: "row",
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
     alignItems: "center",
+    justifyContent: "center",
+    gap: SPACING.sm,
+    ...SHADOWS.sm,
   },
-  actionText: { color: "#fff", fontWeight: "bold" },
+  actionText: { 
+    color: COLORS.textInverse, 
+    fontWeight: TYPOGRAPHY.bold,
+    fontSize: TYPOGRAPHY.sm,
+  },
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    padding: SPACING.lg,
   },
-  emptyText: { fontSize: 18, color: "#777" },
+  emptyText: { 
+    fontSize: TYPOGRAPHY.xl, 
+    color: COLORS.text,
+    fontWeight: TYPOGRAPHY.bold,
+    marginTop: SPACING.md,
+  },
+  emptySubtext: {
+    fontSize: TYPOGRAPHY.md,
+    color: COLORS.textLight,
+    marginTop: SPACING.sm,
+  },
 });

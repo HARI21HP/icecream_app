@@ -6,21 +6,29 @@ export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
 
   const addToCart = (item, quantity = 1) => {
+    console.log('🛒 AddToCart called with:', { item, quantity });
+    
     if (!item?.id) {
-      console.warn("CartContext: Tried to add item without an ID", item);
-      return;
+      console.warn("⚠️ CartContext: Tried to add item without an ID", item);
+      return false;
     }
+    
     setCartItems((prev) => {
       const existingItem = prev.find((i) => i.id === item.id);
       if (existingItem) {
+        console.log('✓ Item exists, updating quantity');
         return prev.map((i) =>
           i.id === item.id
             ? { ...i, quantity: i.quantity + Math.max(1, quantity) }
             : i
         );
       }
+      console.log('✓ Adding new item to cart');
       return [...prev, { ...item, quantity: Math.max(1, quantity) }];
     });
+    
+    console.log('✓ Cart updated successfully');
+    return true;
   };
 
   const decrementQuantity = (id, step = 1) => {
