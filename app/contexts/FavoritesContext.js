@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert, ToastAndroid, Platform } from 'react-native';
 import { AuthContext } from './AuthContext';
 
 export const FavoritesContext = createContext();
@@ -37,7 +38,16 @@ export function FavoritesProvider({ children }) {
     }
   };
 
-  const toggleFavorite = (productId) => {
+  const showToast = (message) => {
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      // For iOS, you could use a library like react-native-toast-message
+      // For now, we'll skip iOS toast
+    }
+  };
+
+  const toggleFavorite = (productId, productName) => {
     setFavorites((prevFavorites) => {
       const isFavorite = prevFavorites.includes(productId);
       const newFavorites = isFavorite
@@ -45,6 +55,14 @@ export function FavoritesProvider({ children }) {
         : [...prevFavorites, productId];
       
       saveFavorites(newFavorites);
+      
+      // Show toast notification
+      if (isFavorite) {
+        showToast(`Removed from favourites!`);
+      } else {
+        showToast(`Added to favourites!`);
+      }
+      
       return newFavorites;
     });
   };

@@ -4,13 +4,14 @@
     "slug": "vee-one-ice-creams",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/icecream.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "jsEngine": "hermes",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/icecream.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FFE5E5"
     },
     "ios": {
       "supportsTablet": true,
@@ -20,13 +21,15 @@
       "package": "com.icecream.icecreamapp",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/icecream.png",
+        "backgroundColor": "#FFE5E5"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "enableProguardInReleaseBuilds": true,
+      "enableShrinkResourcesInReleaseBuilds": true
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/icecream.png"
     },
     "plugins": [
       "expo-font",

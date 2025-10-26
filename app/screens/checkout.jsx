@@ -119,11 +119,24 @@ export default function CheckoutScreen({ navigation }) {
         [
           {
             text: 'View Orders',
-            onPress: () => navigation.navigate('OrderHistory'),
+            onPress: () => {
+              // First go back to tabs
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'MainApp' }],
+              });
+              // Then navigate to OrderHistory
+              setTimeout(() => navigation.navigate('OrderHistory'), 300);
+            },
           },
           {
             text: 'Continue Shopping',
-            onPress: () => navigation.navigate('Shop'),
+            onPress: () => {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'MainApp' }],
+              });
+            },
           },
         ]
       );

@@ -26,11 +26,11 @@ import {
  */
 export const fetchProducts = async () => {
   try {
-    console.log("📦 Fetching products from Firestore...");
+
     const querySnapshot = await getDocs(collection(db, "products"));
     
     if (querySnapshot.empty) {
-      console.log("⚠️ No products found in Firestore");
+
       return [];
     }
     
@@ -38,8 +38,7 @@ export const fetchProducts = async () => {
       id: doc.id,
       ...doc.data(),
     }));
-    
-    console.log(`✅ Fetched ${products.length} products`);
+
     return products;
   } catch (error) {
     console.error("❌ Error fetching products:", error);
@@ -60,7 +59,7 @@ export const fetchProductById = async (productId) => {
     if (productSnap.exists()) {
       return { id: productSnap.id, ...productSnap.data() };
     } else {
-      console.log(`⚠️ Product ${productId} not found`);
+
       return null;
     }
   } catch (error) {
@@ -82,8 +81,7 @@ export const addProduct = async (product) => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
-    
-    console.log(`✅ Added product ${docRef.id}`);
+
     return { id: docRef.id, ...product };
   } catch (error) {
     console.error("❌ Error adding product:", error);
@@ -104,8 +102,7 @@ export const updateProduct = async (productId, fields) => {
       ...fields,
       updatedAt: new Date().toISOString(),
     });
-    
-    console.log(`✅ Updated product ${productId}`);
+
   } catch (error) {
     console.error(`❌ Error updating product ${productId}:`, error);
     throw error;
@@ -121,7 +118,7 @@ export const deleteProduct = async (productId) => {
   try {
     const productRef = doc(db, "products", productId);
     await deleteDoc(productRef);
-    console.log(`✅ Deleted product ${productId}`);
+
   } catch (error) {
     console.error(`❌ Error deleting product ${productId}:`, error);
     throw error;
@@ -140,7 +137,7 @@ export const createOrUpdateUser = async (userId, userData) => {
   try {
     const userRef = doc(db, "users", userId);
     await setDoc(userRef, userData, { merge: true });
-    console.log(`✅ User ${userId} profile updated`);
+
   } catch (error) {
     console.error(`❌ Error updating user ${userId}:`, error);
     throw error;
@@ -160,7 +157,7 @@ export const fetchUserProfile = async (userId) => {
     if (userSnap.exists()) {
       return { id: userSnap.id, ...userSnap.data() };
     } else {
-      console.log(`⚠️ User ${userId} not found`);
+
       return null;
     }
   } catch (error) {
@@ -185,8 +182,7 @@ export const fetchUserAddresses = async (userId) => {
       id: doc.id,
       ...doc.data(),
     }));
-    
-    console.log(`✅ Fetched ${addresses.length} addresses for user ${userId}`);
+
     return addresses;
   } catch (error) {
     console.error(`❌ Error fetching addresses for user ${userId}:`, error);
@@ -207,8 +203,7 @@ export const addUserAddress = async (userId, addressData) => {
       ...addressData,
       createdAt: new Date().toISOString(),
     });
-    
-    console.log(`✅ Added address ${docRef.id} for user ${userId}`);
+
     return { id: docRef.id, ...addressData };
   } catch (error) {
     console.error(`❌ Error adding address for user ${userId}:`, error);
@@ -227,7 +222,7 @@ export const updateUserAddress = async (userId, addressId, fields) => {
   try {
     const addressRef = doc(db, "users", userId, "addresses", addressId);
     await updateDoc(addressRef, fields);
-    console.log(`✅ Updated address ${addressId} for user ${userId}`);
+
   } catch (error) {
     console.error(`❌ Error updating address ${addressId}:`, error);
     throw error;
@@ -244,7 +239,7 @@ export const deleteUserAddress = async (userId, addressId) => {
   try {
     const addressRef = doc(db, "users", userId, "addresses", addressId);
     await deleteDoc(addressRef);
-    console.log(`✅ Deleted address ${addressId} for user ${userId}`);
+
   } catch (error) {
     console.error(`❌ Error deleting address ${addressId}:`, error);
     throw error;
@@ -267,8 +262,7 @@ export const createOrder = async (orderData) => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
-    
-    console.log(`✅ Created order ${docRef.id} for user ${orderData.userId}`);
+
     return { id: docRef.id, ...orderData };
   } catch (error) {
     console.error("❌ Error creating order:", error);
@@ -295,8 +289,7 @@ export const fetchUserOrders = async (userId) => {
       id: doc.id,
       ...doc.data(),
     }));
-    
-    console.log(`✅ Fetched ${orders.length} orders for user ${userId}`);
+
     return orders;
   } catch (error) {
     console.error(`❌ Error fetching orders for user ${userId}:`, error);
@@ -317,7 +310,7 @@ export const fetchOrderById = async (orderId) => {
     if (orderSnap.exists()) {
       return { id: orderSnap.id, ...orderSnap.data() };
     } else {
-      console.log(`⚠️ Order ${orderId} not found`);
+
       return null;
     }
   } catch (error) {
@@ -339,7 +332,7 @@ export const updateOrderStatus = async (orderId, status) => {
       status,
       updatedAt: new Date().toISOString(),
     });
-    console.log(`✅ Updated order ${orderId} status to ${status}`);
+
   } catch (error) {
     console.error(`❌ Error updating order ${orderId} status:`, error);
     throw error;
@@ -362,7 +355,7 @@ export const addToCart = async (userId, productId) => {
     await updateDoc(userRef, {
       cart: arrayUnion(productId),
     });
-    console.log(`✅ Added product ${productId} to cart for user ${userId}`);
+
   } catch (error) {
     console.error("❌ Error adding to cart:", error);
     throw error;
@@ -381,7 +374,7 @@ export const removeFromCart = async (userId, productId) => {
     await updateDoc(userRef, {
       cart: arrayRemove(productId),
     });
-    console.log(`✅ Removed product ${productId} from cart for user ${userId}`);
+
   } catch (error) {
     console.error("❌ Error removing from cart:", error);
     throw error;
@@ -399,7 +392,7 @@ export const clearCart = async (userId) => {
     await updateDoc(userRef, {
       cart: [],
     });
-    console.log(`✅ Cleared cart for user ${userId}`);
+
   } catch (error) {
     console.error("❌ Error clearing cart:", error);
     throw error;
@@ -446,8 +439,7 @@ export const seedProducts = async (products) => {
       });
       createdIds.push(docRef.id);
     }
-    
-    console.log(`✅ Seeded ${createdIds.length} products`);
+
     return createdIds;
   } catch (error) {
     console.error("❌ Error seeding products:", error);

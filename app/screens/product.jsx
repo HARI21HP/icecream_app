@@ -14,6 +14,7 @@ import Animated, {
 import { FontAwesome } from "@expo/vector-icons";
 import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import { CartContext } from "../contexts/CartContext";
+import { getImageSource } from "../constants/images";
 
 const { width } = Dimensions.get("window");
 
@@ -62,11 +63,11 @@ export default function Details({ route, navigation }) {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View style={[styles.imageContainer, animatedImageStyle]}>
-          {item.imageUrl ? (
-            <Image source={{ uri: item.imageUrl }} style={styles.image} resizeMode="cover" />
-          ) : (
-            <Image source={item.image} style={styles.image} resizeMode="cover" />
-          )}
+          <Image 
+            source={getImageSource(item.imageUrl || item.image)} 
+            style={styles.image} 
+            resizeMode="cover" 
+          />
         </Animated.View>
 
         <Animated.View 
@@ -176,7 +177,7 @@ export default function Details({ route, navigation }) {
                   `${item.name} (Qty: ${quantity}) added to cart!`,
                   [
                     { text: "Continue Shopping", onPress: () => navigation.goBack() },
-                    { text: "View Cart", onPress: () => navigation.navigate("Cart") }
+                    { text: "View Cart", onPress: () => navigation.navigate("MainApp", { screen: "Cart" }) }
                   ]
                 );
               }}
@@ -192,7 +193,7 @@ export default function Details({ route, navigation }) {
               onPress={() => {
                 if (!item.inStock) return;
                 addToCart(item, quantity);
-                navigation.navigate("Cart");
+                navigation.navigate("MainApp", { screen: "Cart" });
               }}
               disabled={!item.inStock}
               activeOpacity={0.8}

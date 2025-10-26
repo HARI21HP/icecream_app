@@ -26,6 +26,7 @@ import AddressesScreen from "./screens/addresses";
 import CheckoutScreen from "./screens/checkout";
 import OrderHistoryScreen from "./screens/orderHistory";
 import OrderTrackingScreen from "./screens/orderTracking";
+import FavoritesScreen from "./screens/favorites";
 
 import { CartProvider } from "./contexts/CartContext";
 import { ProductsProvider } from "./contexts/ProductsContext";
@@ -184,6 +185,15 @@ function Navigation() {
           options={{ 
             headerShown: false,
             animation: "slide_from_bottom",
+          }}
+        />
+        
+        <Stack.Screen
+          name="Favorites"
+          component={FavoritesScreen}
+          options={{ 
+            headerShown: false,
+            animation: "slide_from_right",
           }}
         />
         

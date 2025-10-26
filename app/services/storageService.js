@@ -1,6 +1,11 @@
 // Storage Service - File upload and management operations
 import { storage } from "../config/firebaseConfig";
-import { ref, uploadBytes, getDownloadURL, deleteObject, listAll } from "firebase/storage";
+import { ref, uploadBytes, uploadString, getDownloadURL, deleteObject, listAll, uploadBytesResumable } from "firebase/storage";
+// Use legacy API for readAsStringAsync base64 fallback on Expo SDK 54
+import * as FileSystem from "expo-file-system/legacy";
+
+// Safe base64 encoding constant for Expo native and web shims
+const BASE64_ENCODING = (FileSystem && FileSystem.EncodingType && FileSystem.EncodingType.Base64) ? FileSystem.EncodingType.Base64 : 'base64';
 
 // ==================== PRODUCT IMAGES ====================
 
@@ -12,17 +17,25 @@ import { ref, uploadBytes, getDownloadURL, deleteObject, listAll } from "firebas
  */
 export const uploadProductImage = async (fileUri, filename) => {
   try {
-    console.log(`📤 Uploading product image: ${filename}`);
-    
     const response = await fetch(fileUri);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch file for upload (status ${response.status})`);
+    }
     const blob = await response.blob();
-    
+
     const storageRef = ref(storage, `products/${filename}`);
-    await uploadBytes(storageRef, blob);
-    
+    const metadata = { contentType: blob.type || 'image/jpeg', cacheControl: 'public, max-age=31536000' };
+    try {
+      await uploadBytes(storageRef, blob, metadata);
+    } catch (err) {
+      // Fallback: base64 upload using data_url (more compatible on RN)
+      const base64 = await FileSystem.readAsStringAsync(fileUri, { encoding: BASE64_ENCODING });
+      const dataUrl = `data:${metadata.contentType || 'image/jpeg'};base64,${base64}`;
+      await uploadString(storageRef, dataUrl, 'data_url');
+    }
+
     const downloadURL = await getDownloadURL(storageRef);
-    console.log(`✅ Product image uploaded: ${downloadURL}`);
-    
+
     return downloadURL;
   } catch (error) {
     console.error("❌ Error uploading product image:", error);
@@ -39,7 +52,7 @@ export const deleteProductImage = async (filename) => {
   try {
     const storageRef = ref(storage, `products/${filename}`);
     await deleteObject(storageRef);
-    console.log(`✅ Deleted product image: ${filename}`);
+
   } catch (error) {
     console.error("❌ Error deleting product image:", error);
     throw error;
@@ -62,8 +75,7 @@ export const listProductImages = async () => {
         url: await getDownloadURL(itemRef),
       }))
     );
-    
-    console.log(`✅ Listed ${images.length} product images`);
+
     return images;
   } catch (error) {
     console.error("❌ Error listing product images:", error);
@@ -81,17 +93,15 @@ export const listProductImages = async () => {
  */
 export const uploadProfilePicture = async (userId, fileUri) => {
   try {
-    console.log(`📤 Uploading profile picture for user: ${userId}`);
-    
-    const response = await fetch(fileUri);
-    const blob = await response.blob();
-    
-    const storageRef = ref(storage, `profilePictures/${userId}`);
-    await uploadBytes(storageRef, blob);
-    
+    // Use folder + filename to avoid overwriting
+    const filename = `profile_${Date.now()}.jpg`;
+    const storageRef = ref(storage, `profile_pictures/${userId}/${filename}`);
+    const base64 = await FileSystem.readAsStringAsync(fileUri, { encoding: BASE64_ENCODING });
+    const dataUrl = `data:image/jpeg;base64,${base64}`;
+    await uploadString(storageRef, dataUrl, 'data_url');
+
     const downloadURL = await getDownloadURL(storageRef);
-    console.log(`✅ Profile picture uploaded: ${downloadURL}`);
-    
+
     return downloadURL;
   } catch (error) {
     console.error("❌ Error uploading profile picture:", error);
@@ -106,9 +116,9 @@ export const uploadProfilePicture = async (userId, fileUri) => {
  */
 export const deleteProfilePicture = async (userId) => {
   try {
-    const storageRef = ref(storage, `profilePictures/${userId}`);
+    const storageRef = ref(storage, `profile_pictures/${userId}`);
     await deleteObject(storageRef);
-    console.log(`✅ Deleted profile picture for user: ${userId}`);
+
   } catch (error) {
     console.error("❌ Error deleting profile picture:", error);
     throw error;
@@ -122,12 +132,12 @@ export const deleteProfilePicture = async (userId) => {
  */
 export const getProfilePictureURL = async (userId) => {
   try {
-    const storageRef = ref(storage, `profilePictures/${userId}`);
+    const storageRef = ref(storage, `profile_pictures/${userId}`);
     const downloadURL = await getDownloadURL(storageRef);
     return downloadURL;
   } catch (error) {
     if (error.code === "storage/object-not-found") {
-      console.log(`⚠️ No profile picture found for user: ${userId}`);
+
       return null;
     }
     console.error("❌ Error getting profile picture URL:", error);
@@ -146,21 +156,67 @@ export const getProfilePictureURL = async (userId) => {
  */
 export const uploadFile = async (fileUri, path, metadata = {}) => {
   try {
-    console.log(`📤 Uploading file to: ${path}`);
-    
+
     const response = await fetch(fileUri);
     const blob = await response.blob();
     
     const storageRef = ref(storage, path);
-    await uploadBytes(storageRef, blob, metadata);
+    try {
+      await uploadBytes(storageRef, blob, metadata);
+    } catch (err) {
+      // Ensure contentType for generic uploads
+      const ensuredMeta = { contentType: blob.type || metadata?.contentType || 'application/octet-stream', ...metadata };
+      const base64 = await FileSystem.readAsStringAsync(fileUri, { encoding: BASE64_ENCODING });
+      const dataUrl = `data:${ensuredMeta.contentType};base64,${base64}`;
+      await uploadString(storageRef, dataUrl, 'data_url');
+    }
     
     const downloadURL = await getDownloadURL(storageRef);
-    console.log(`✅ File uploaded: ${downloadURL}`);
-    
+
     return downloadURL;
   } catch (error) {
     console.error(`❌ Error uploading file to ${path}:`, error);
     throw error;
+  }
+};
+
+/**
+ * Upload a file with progress updates using uploadBytesResumable
+ * @param {string} fileUri - Local file URI
+ * @param {string} path - Storage path (e.g., 'products/{productId}/image.jpg')
+ * @param {(progress:number)=>void} onProgress - Callback with [0..1]
+ * @param {Object} metadata - Optional metadata with contentType
+ * @returns {Promise<string>} Download URL
+ */
+export const uploadFileWithProgress = async (fileUri, path, onProgress = () => {}, metadata = {}) => {
+  const response = await fetch(fileUri);
+  if (!response.ok) throw new Error(`Failed to fetch file for upload (status ${response.status})`);
+  const blob = await response.blob();
+  const storageRef = ref(storage, path);
+  const ensuredMeta = { contentType: blob.type || metadata?.contentType || 'application/octet-stream', ...metadata };
+
+  try {
+    const task = uploadBytesResumable(storageRef, blob, ensuredMeta);
+    return await new Promise((resolve, reject) => {
+      task.on('state_changed', (snapshot) => {
+        if (snapshot.totalBytes > 0) {
+          onProgress(snapshot.bytesTransferred / snapshot.totalBytes);
+        }
+      }, (error) => {
+        reject(error);
+      }, async () => {
+        const url = await getDownloadURL(storageRef);
+        resolve(url);
+      });
+    });
+  } catch (err) {
+    // Fallback to base64 (no progress events) using data_url
+    const base64 = await FileSystem.readAsStringAsync(fileUri, { encoding: BASE64_ENCODING });
+    const dataUrl = `data:${ensuredMeta.contentType};base64,${base64}`;
+    await uploadString(storageRef, dataUrl, 'data_url');
+    const url = await getDownloadURL(storageRef);
+    onProgress(1);
+    return url;
   }
 };
 
@@ -173,7 +229,7 @@ export const deleteFile = async (path) => {
   try {
     const storageRef = ref(storage, path);
     await deleteObject(storageRef);
-    console.log(`✅ Deleted file: ${path}`);
+
   } catch (error) {
     console.error(`❌ Error deleting file ${path}:`, error);
     throw error;
@@ -192,7 +248,7 @@ export const getFileURL = async (path) => {
     return downloadURL;
   } catch (error) {
     if (error.code === "storage/object-not-found") {
-      console.log(`⚠️ File not found: ${path}`);
+
       return null;
     }
     console.error(`❌ Error getting file URL for ${path}:`, error);

@@ -1,0 +1,48 @@
+rules_version = '2';
+
+// Firebase Storage Security Rules
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email == 'hariprakashpc@gmail.com';
+    }
+    
+    // Product images - public read, auth write, supports nested paths (e.g., products/{productId}/image.jpg)
+    match /products/{productId}/{allPaths=**} {
+      allow read: if true; // Public read access
+      allow write: if isSignedIn(); // Any authenticated user can upload
+      allow delete: if isAdmin(); // Only admin can delete
+    }
+    
+    // Profile pictures - public read, user-only write
+    match /profile_pictures/{userId}/{fileName} {
+      allow read: if true; // Public read so images can be displayed
+      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow delete: if isSignedIn() && request.auth.uid == userId;
+    }
+    
+    // Legacy paths for backward compatibility
+    match /profilePictures/{userId} {
+      allow read: if true;
+      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow delete: if isSignedIn() && request.auth.uid == userId;
+    }
+    
+    match /profiles/{userId}/{imageId} {
+      allow read: if true;
+      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow delete: if isSignedIn() && request.auth.uid == userId;
+    }
+    
+    // Default: deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

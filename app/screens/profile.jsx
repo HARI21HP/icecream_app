@@ -56,30 +56,108 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant camera roll permission');
-      return;
+    try {
+      // Show action sheet to choose between camera and gallery
+      Alert.alert(
+        'Update Profile Picture',
+        'Choose an option',
+        [
+          {
+            text: 'Take Photo',
+            onPress: async () => {
+              try {
+                const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                if (status !== 'granted') {
+                  Alert.alert('Permission Denied', 'Camera permission is required to take photos');
+                  return;
+                }
+                await launchCamera();
+              } catch (error) {
+                console.error('Error in Take Photo:', error);
+                Alert.alert('Error', error.message);
+              }
+            },
+          },
+          {
+            text: 'Choose from Gallery',
+            onPress: async () => {
+              try {
+                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (status !== 'granted') {
+                  Alert.alert('Permission Denied', 'Gallery permission is required to choose photos');
+                  return;
+                }
+                await launchGallery();
+              } catch (error) {
+                console.error('Error in Choose from Gallery:', error);
+                Alert.alert('Error', error.message);
+              }
+            },
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+        ],
+        { cancelable: true }
+      );
+    } catch (error) {
+      console.error('Error in pickImage:', error);
+      Alert.alert('Error', error.message);
     }
+  };
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
-    });
+  const launchCamera = async () => {
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
 
-    if (!result.canceled) {
-      setUploading(true);
-      const updateResult = await updateProfilePicture(result.assets[0].uri);
-      setUploading(false);
+      if (!result.canceled) {
+        await uploadProfileImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error in launchCamera:', error);
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  const launchGallery = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+
+      if (!result.canceled) {
+        await uploadProfileImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error in launchGallery:', error);
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  const uploadProfileImage = async (imageUri) => {
+    setUploading(true);
+    try {
+      const updateResult = await updateProfilePicture(imageUri);
 
       if (updateResult.success) {
-        Alert.alert('Success', 'Profile picture updated!');
+        Alert.alert('✓ Success', 'Profile picture updated successfully!');
       } else {
-        Alert.alert('Error', updateResult.error || 'Failed to update picture');
+        Alert.alert('Error', updateResult.error || 'Failed to update profile picture');
       }
+    } catch (error) {
+      console.error('Error in uploadProfileImage:', error);
+      Alert.alert('Error', 'An unexpected error occurred: ' + error.message);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -135,7 +213,12 @@ export default function ProfileScreen({ navigation }) {
           entering={ZoomIn.duration(600).springify()}
           style={styles.profileHeader}
         >
-          <View style={styles.profilePicContainer}>
+          <TouchableOpacity
+            style={styles.profilePicContainer}
+            onPress={pickImage}
+            disabled={uploading}
+            activeOpacity={0.8}
+          >
             {user.photoURL ? (
               <Image source={{ uri: user.photoURL }} style={styles.profilePic} />
             ) : (
@@ -143,19 +226,17 @@ export default function ProfileScreen({ navigation }) {
                 <FontAwesome name="user" size={50} color={COLORS.textMuted} />
               </View>
             )}
-            <TouchableOpacity
+            <View
               style={styles.cameraBadge}
-              onPress={pickImage}
-              disabled={uploading}
-              activeOpacity={0.7}
+              pointerEvents="none"
             >
               {uploading ? (
                 <ActivityIndicator size="small" color={COLORS.textInverse} />
               ) : (
                 <FontAwesome name="camera" size={16} color={COLORS.textInverse} />
               )}
-            </TouchableOpacity>
-          </View>
+            </View>
+          </TouchableOpacity>
 
           <Text style={styles.userName}>{user.displayName || 'User'}</Text>
           <Text style={styles.userEmail}>{user.email}</Text>
@@ -243,25 +324,21 @@ export default function ProfileScreen({ navigation }) {
 
           <View style={styles.divider} />
 
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => navigation.navigate('Favorites')}
+            activeOpacity={0.7}
+          >
+            <FontAwesome name="heart" size={20} color="#FF6B6B" />
+            <Text style={styles.actionText}>My Favorites</Text>
+            <FontAwesome name="chevron-right" size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
           <TouchableOpacity style={styles.actionButton} activeOpacity={0.7}>
             <FontAwesome name="cog" size={20} color={COLORS.text} />
             <Text style={styles.actionText}>Settings</Text>
-            <FontAwesome name="chevron-right" size={16} color={COLORS.textMuted} />
-          </TouchableOpacity>
-
-          <View style={styles.divider} />
-
-          <TouchableOpacity style={styles.actionButton} activeOpacity={0.7}>
-            <FontAwesome name="heart" size={20} color={COLORS.text} />
-            <Text style={styles.actionText}>Favorites</Text>
-            <FontAwesome name="chevron-right" size={16} color={COLORS.textMuted} />
-          </TouchableOpacity>
-
-          <View style={styles.divider} />
-
-          <TouchableOpacity style={styles.actionButton} activeOpacity={0.7}>
-            <FontAwesome name="history" size={20} color={COLORS.text} />
-            <Text style={styles.actionText}>Order History</Text>
             <FontAwesome name="chevron-right" size={16} color={COLORS.textMuted} />
           </TouchableOpacity>
         </Animated.View>

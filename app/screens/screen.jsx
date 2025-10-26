@@ -23,6 +23,7 @@ import { FontAwesome } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import BrandHeader from "../components/BrandHeader";
 import { ProductsContext } from "../contexts/ProductsContext";
+import { getImageSource } from "../constants/images";
 import Animated, { 
   FadeInDown, 
   FadeInUp, 
@@ -68,18 +69,13 @@ const Screen = () => {
   const navigation = useNavigation();
   const { user } = useContext(AuthContext);
   const { addToCart, cartItems } = useContext(CartContext);
-  const { toggleFavorite, isFavorite } = useContext(FavoritesContext);
+  const { toggleFavorite, isFavorite, favorites } = useContext(FavoritesContext);
   const [quantities, setQuantities] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
   const [sortAsc, setSortAsc] = useState(true);
   const [hideOutOfStock, setHideOutOfStock] = useState(false);
   const window = useWindowDimensions();
   
-  // Debug: Log cart items whenever they change
-  useEffect(() => {
-    console.log('📦 Cart items updated:', cartItems);
-    console.log('📦 Total items in cart:', cartItems.length);
-  }, [cartItems]);
   const columns = window.width > 520 ? 3 : window.width < 340 ? 1 : 2;
 
   const { products } = useContext(ProductsContext);
@@ -141,35 +137,29 @@ const Screen = () => {
             style={styles.imageContainer}
           >
             <Image
-              source={
-                item.imageUrl
-                  ? { uri: item.imageUrl }
-                  : item.image
-                  ? item.image
-                  : require("../../assets/icecream.png")
-              }
+              source={getImageSource(item.imageUrl || item.image)}
               style={{
                 width:
                   columns === 3 ? window.width * 0.22 : window.width * 0.3,
                 height:
                   columns === 3 ? window.width * 0.22 : window.width * 0.3,
-                resizeMode: item.imageUrl ? "cover" : "contain",
+                resizeMode: "cover",
                 borderRadius: BORDER_RADIUS.lg,
               }}
             />
           </TouchableOpacity>
           
-          {/* Favorite Heart Button - Outside image, top right corner */}
+          {/* Favorite Button - Outside image, top right corner */}
           <TouchableOpacity
             style={styles.favoriteButton}
-            onPress={() => toggleFavorite(item.id)}
+            onPress={() => toggleFavorite(item.id, item.name)}
             activeOpacity={0.7}
           >
-            <FontAwesome
-              name={isFavorite(item.id) ? "heart" : "heart-o"}
-              size={18}
-              color={isFavorite(item.id) ? "#FF0000" : COLORS.textMuted}
-            />
+            {isFavorite(item.id) ? (
+              <Text style={[styles.favoriteIcon, { color: '#FF6B6B' }]}>🍦</Text>
+            ) : (
+              <FontAwesome name="heart-o" size={18} color="#999" />
+            )}
           </TouchableOpacity>
           
           <Text
@@ -237,21 +227,14 @@ const Screen = () => {
             onPress={() => {
               if (!item.inStock) return;
               
-              console.log('🔘 Add to Cart button pressed for:', item.name);
-              console.log('Item details:', { id: item.id, name: item.name, price: item.price });
-              console.log('Quantity:', currentQty);
-              
               // Add to cart directly (no login required)
               try {
                 const success = addToCart(item, currentQty);
                 
                 if (success === false) {
-                  console.error('❌ AddToCart returned false');
                   Alert.alert("Error", "Failed to add item to cart. Item may be missing an ID.");
                   return;
                 }
-                
-                console.log('✓ Item added successfully');
                 
                 // Success feedback
                 Alert.alert(
@@ -264,7 +247,7 @@ const Screen = () => {
                     },
                     { 
                       text: "View Cart", 
-                      onPress: () => navigation.navigate("Cart") 
+                      onPress: () => navigation.navigate("MainApp", { screen: "Cart" })
                     }
                   ]
                 );
@@ -296,7 +279,7 @@ const Screen = () => {
         </Animated.View>
       );
     },
-    [columns, quantities, window.width, user, addToCart, navigation]
+    [columns, quantities, window.width, user, addToCart, navigation, toggleFavorite, isFavorite, favorites]
   );
 
   return (
@@ -311,6 +294,7 @@ const Screen = () => {
         <BrandHeader 
           showSearch={true}
           showCart={true}
+          showFavorites={true}
           searchValue={searchQuery}
           onSearchChange={setSearchQuery}
         />
@@ -748,18 +732,24 @@ const styles = StyleSheet.create({
   },
   favoriteButton: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 20,
-    width: 36,
-    height: 36,
+    top: 6,
+    right: 6,
+    backgroundColor: COLORS.surface,
+    borderRadius: 15,
+    width: 30,
+    height: 30,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 5,
+    zIndex: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  favoriteIcon: {
+    fontSize: 20,
   },
 });

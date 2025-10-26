@@ -22,14 +22,15 @@ import { ProductsContext } from '../contexts/ProductsContext';
 import { doc, getDoc, collection, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../config/firebaseConfig';
 import * as ImagePicker from 'expo-image-picker';
-import { uploadProductImage } from '../services/storageService';
+import { uploadProductImage, uploadFileWithProgress } from '../services/storageService';
+import { getImageSource } from '../constants/images';
 
 // Admin email - Replace with your shop owner email
 const ADMIN_EMAIL = 'hariprakashpc@gmail.com';
 
 export default function AdminScreen({ navigation }) {
   const { user } = useContext(AuthContext);
-  const { products, refreshProducts } = useContext(ProductsContext);
+  const { products, refreshProducts, bulkUpdateStocks } = useContext(ProductsContext);
   const [loading, setLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -37,6 +38,9 @@ export default function AdminScreen({ navigation }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [localImageUri, setLocalImageUri] = useState('');
+  const [bulkStock, setBulkStock] = useState('50');
   
   const [formData, setFormData] = useState({
     name: '',
@@ -116,23 +120,16 @@ export default function AdminScreen({ navigation }) {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
     });
 
     if (!result.canceled) {
-      setUploading(true);
-      try {
-        const imageUrl = await uploadProductImage(result.assets[0].uri, `product_${Date.now()}`);
-        setFormData({ ...formData, imageUrl });
-        Alert.alert('Success', 'Image uploaded!');
-      } catch (error) {
-        Alert.alert('Error', 'Failed to upload image');
-      } finally {
-        setUploading(false);
-      }
+      // Defer upload until save so we can upload to products/{productId}/image.jpg
+      setLocalImageUri(result.assets[0].uri);
+      setFormData({ ...formData, imageUrl: '' });
     }
   };
 
@@ -172,24 +169,46 @@ export default function AdminScreen({ navigation }) {
 
     try {
       setLoading(true);
+      setUploading(false);
+      setUploadProgress(0);
       const productData = {
         name: formData.name,
         price: parseFloat(formData.price),
         stock: parseInt(formData.stock) || 0,
         category: formData.category,
         description: formData.description,
-        imageUrl: formData.imageUrl,
+        imageUrl: '',
         rating: parseFloat(formData.rating) || 4.5,
         inStock: parseInt(formData.stock) > 0,
         updatedAt: new Date().toISOString(),
       };
 
       if (editingProduct) {
+        // Update main fields first
         await updateDoc(doc(db, 'products', editingProduct.id), productData);
+        // If a new local image selected, upload to products/{id}/image.jpg, update doc
+        if (localImageUri) {
+          setUploading(true);
+          const path = `products/${editingProduct.id}/image.jpg`;
+          const url = await uploadFileWithProgress(localImageUri, path, setUploadProgress, { contentType: 'image/jpeg' });
+          await updateDoc(doc(db, 'products', editingProduct.id), { imageUrl: url, updatedAt: new Date().toISOString() });
+          setFormData((prev) => ({ ...prev, imageUrl: url }));
+          setLocalImageUri('');
+        }
         Alert.alert('Success', 'Product updated successfully');
       } else {
+        // Create product first to get productId
         productData.createdAt = new Date().toISOString();
-        await addDoc(collection(db, 'products'), productData);
+        const docRef = await addDoc(collection(db, 'products'), productData);
+        // Upload image if selected
+        if (localImageUri) {
+          setUploading(true);
+          const path = `products/${docRef.id}/image.jpg`;
+          const url = await uploadFileWithProgress(localImageUri, path, setUploadProgress, { contentType: 'image/jpeg' });
+          await updateDoc(doc(db, 'products', docRef.id), { imageUrl: url, updatedAt: new Date().toISOString() });
+          setFormData((prev) => ({ ...prev, imageUrl: url }));
+          setLocalImageUri('');
+        }
         Alert.alert('Success', 'Product added successfully');
       }
 
@@ -200,6 +219,8 @@ export default function AdminScreen({ navigation }) {
       Alert.alert('Error', 'Failed to save product');
     } finally {
       setLoading(false);
+      setUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -230,6 +251,27 @@ export default function AdminScreen({ navigation }) {
   };
 
   const handleSeedProducts = async () => {
+  const handleBulkStockUpdate = async () => {
+    const count = parseInt(bulkStock);
+    if (Number.isNaN(count) || count < 0) {
+      Alert.alert('Invalid value', 'Please enter a non-negative number');
+      return;
+    }
+    try {
+      setLoading(true);
+      const res = await bulkUpdateStocks(count);
+      if (res?.success) {
+        Alert.alert('Success', `Updated stock to ${count} for ${res.updated} products`);
+        refreshProducts();
+      } else {
+        Alert.alert('Error', res?.error || 'Failed to update stock');
+      }
+    } catch (e) {
+      Alert.alert('Error', e?.message || 'Failed to update stock');
+    } finally {
+      setLoading(false);
+    }
+  };
     Alert.alert(
       'Seed Products',
       'This will add 12 ice cream products to your database. Continue?',
@@ -297,7 +339,7 @@ export default function AdminScreen({ navigation }) {
           renderItem={({ item }) => (
             <Animated.View entering={FadeInDown} style={styles.productCard}>
               <Image
-                source={item.imageUrl ? { uri: item.imageUrl } : require('../../assets/icecream.png')}
+                source={getImageSource(item.imageUrl)}
                 style={styles.productImage}
               />
               <View style={styles.productInfo}>
@@ -375,6 +417,29 @@ export default function AdminScreen({ navigation }) {
               <Text style={styles.primaryButtonText}>Add New Product</Text>
             </TouchableOpacity>
           </Animated.View>
+          <Animated.View entering={ZoomIn.delay(200)} style={styles.actionCard}>
+            <FontAwesome name="cubes" size={48} color={COLORS.primary} />
+            <Text style={styles.actionTitle}>Bulk Update Stock</Text>
+            <Text style={styles.actionDesc}>Set the same stock quantity for all products</Text>
+            <TextInput
+              style={[styles.input, { marginTop: SPACING.md, textAlign: 'center', maxWidth: 160 }]}
+              value={bulkStock}
+              onChangeText={setBulkStock}
+              placeholder="e.g., 50"
+              keyboardType="numeric"
+            />
+            <TouchableOpacity
+              style={[styles.primaryButton, { marginTop: SPACING.md }]}
+              onPress={handleBulkStockUpdate}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color={COLORS.textInverse} />
+              ) : (
+                <Text style={styles.primaryButtonText}>Apply to All</Text>
+              )}
+            </TouchableOpacity>
+          </Animated.View>
         </ScrollView>
       )}
 
@@ -450,8 +515,10 @@ export default function AdminScreen({ navigation }) {
             />
 
             <Text style={styles.label}>Product Image</Text>
-            {formData.imageUrl ? (
-              <Image source={{ uri: formData.imageUrl }} style={styles.previewImage} />
+            {localImageUri ? (
+              <Image source={{ uri: localImageUri }} style={styles.previewImage} />
+            ) : formData.imageUrl ? (
+              <Image source={getImageSource(formData.imageUrl)} style={styles.previewImage} />
             ) : null}
             <TouchableOpacity
               style={styles.imageButton}
@@ -459,12 +526,15 @@ export default function AdminScreen({ navigation }) {
               disabled={uploading}
             >
               {uploading ? (
-                <ActivityIndicator color={COLORS.primary} />
+                <View style={{ alignItems: 'center' }}>
+                  <ActivityIndicator color={COLORS.primary} />
+                  <Text style={{ marginTop: 6, color: COLORS.textSecondary }}>{Math.round(uploadProgress * 100)}%</Text>
+                </View>
               ) : (
                 <>
                   <FontAwesome name="image" size={20} color={COLORS.primary} />
                   <Text style={styles.imageButtonText}>
-                    {formData.imageUrl ? 'Change Image' : 'Upload Image'}
+                    {localImageUri || formData.imageUrl ? 'Change Image' : 'Select Image'}
                   </Text>
                 </>
               )}

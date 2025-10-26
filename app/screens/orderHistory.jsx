@@ -11,10 +11,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
 import { AuthContext } from '../contexts/AuthContext';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '../config/firebaseConfig';
 import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
+
+const ORDERS_LIMIT = 20; // Limit to 20 recent orders for performance
 
 export default function OrderHistoryScreen({ navigation }) {
   const { user } = useContext(AuthContext);
@@ -23,14 +25,20 @@ export default function OrderHistoryScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+    
     if (user) {
-      loadOrders();
+      loadOrders(isMounted);
     } else {
       setLoading(false);
     }
+    
+    return () => {
+      isMounted = false;
+    };
   }, [user]);
 
-  const loadOrders = async () => {
+  const loadOrders = async (isMounted = true) => {
     if (!user) return;
     
     try {
@@ -39,9 +47,13 @@ export default function OrderHistoryScreen({ navigation }) {
       const q = query(
         ordersRef, 
         where('userId', '==', user.uid),
-        orderBy('createdAt', 'desc')
+        orderBy('createdAt', 'desc'),
+        limit(ORDERS_LIMIT)
       );
       const snapshot = await getDocs(q);
+      
+      if (!isMounted) return;
+      
       const ordersList = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -50,14 +62,16 @@ export default function OrderHistoryScreen({ navigation }) {
     } catch (error) {
       console.error('Error loading orders:', error);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (isMounted) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadOrders();
+    loadOrders(true);
   };
 
   const getStatusColor = (status) => {

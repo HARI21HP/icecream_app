@@ -1,37 +1,31 @@
-import React, { createContext, useState } from "react";
+import React, { createContext, useState, useCallback, useMemo } from "react";
 
 export const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
 
-  const addToCart = (item, quantity = 1) => {
-    console.log('🛒 AddToCart called with:', { item, quantity });
-    
+  const addToCart = useCallback((item, quantity = 1) => {
     if (!item?.id) {
-      console.warn("⚠️ CartContext: Tried to add item without an ID", item);
       return false;
     }
     
     setCartItems((prev) => {
       const existingItem = prev.find((i) => i.id === item.id);
       if (existingItem) {
-        console.log('✓ Item exists, updating quantity');
         return prev.map((i) =>
           i.id === item.id
             ? { ...i, quantity: i.quantity + Math.max(1, quantity) }
             : i
         );
       }
-      console.log('✓ Adding new item to cart');
       return [...prev, { ...item, quantity: Math.max(1, quantity) }];
     });
     
-    console.log('✓ Cart updated successfully');
     return true;
-  };
+  }, []);
 
-  const decrementQuantity = (id, step = 1) => {
+  const decrementQuantity = useCallback((id, step = 1) => {
     setCartItems((prev) =>
       prev
         .map((i) =>
@@ -39,33 +33,45 @@ export const CartProvider = ({ children }) => {
         )
         .filter((i) => i.quantity > 0)
     );
-  };
+  }, []);
 
-  const updateQuantity = (id, quantity) => {
+  const updateQuantity = useCallback((id, quantity) => {
     const nextQty = Math.max(0, Number(quantity) || 0);
     setCartItems((prev) => {
       if (nextQty === 0) return prev.filter((i) => i.id !== id);
       return prev.map((i) => (i.id === id ? { ...i, quantity: nextQty } : i));
     });
-  };
+  }, []);
 
-  const removeFromCart = (id) => {
+  const removeFromCart = useCallback((id) => {
     setCartItems((prev) => prev.filter((item) => item.id !== id));
-  };
+  }, []);
 
-  const clearCart = () => setCartItems([]);
+  const clearCart = useCallback(() => setCartItems([]), []);
+
+  const getCartTotal = useCallback(() => {
+    return cartItems.reduce((total, item) => {
+      return total + (item.price * item.quantity);
+    }, 0);
+  }, [cartItems]);
+
+  const getCartItemsCount = useCallback(() => {
+    return cartItems.reduce((count, item) => count + item.quantity, 0);
+  }, [cartItems]);
+
+  const contextValue = useMemo(() => ({
+    cartItems,
+    addToCart,
+    decrementQuantity,
+    updateQuantity,
+    removeFromCart,
+    clearCart,
+    getCartTotal,
+    getCartItemsCount,
+  }), [cartItems, addToCart, decrementQuantity, updateQuantity, removeFromCart, clearCart, getCartTotal, getCartItemsCount]);
 
   return (
-    <CartContext.Provider
-      value={{
-        cartItems,
-        addToCart,
-        decrementQuantity,
-        updateQuantity,
-        removeFromCart,
-        clearCart,
-      }}
-    > 
+    <CartContext.Provider value={contextValue}> 
       {children}
     </CartContext.Provider>
   );

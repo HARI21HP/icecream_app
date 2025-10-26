@@ -8,7 +8,11 @@ import {
   GoogleAuthProvider,
   signInWithCredential
 } from 'firebase/auth';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, uploadString, getDownloadURL } from 'firebase/storage';
+// Use legacy API for readAsStringAsync base64 fallback on Expo SDK 54
+import * as FileSystem from 'expo-file-system/legacy';
+// Safe base64 encoding constant for Expo native and web shims
+const BASE64_ENCODING = (FileSystem && FileSystem.EncodingType && FileSystem.EncodingType.Base64) ? FileSystem.EncodingType.Base64 : 'base64';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, storage, db } from '../config/firebaseConfig';
 
@@ -124,18 +128,53 @@ export function AuthProvider({ children }) {
     try {
       if (!user) return { success: false, error: 'No user logged in' };
 
-      const imageRef = ref(storage, `profilePictures/${user.uid}`);
-      const response = await fetch(imageUri);
-      const blob = await response.blob();
-      await uploadBytes(imageRef, blob);
-      const photoURL = await getDownloadURL(imageRef);
+      console.log('Starting upload for user:', user.uid);
+      console.log('Image URI:', imageUri);
 
+      // Generate unique filename from timestamp
+      const fileName = `profile_${Date.now()}.jpg`;
+      const storagePath = `profile_pictures/${user.uid}/${fileName}`;
+      console.log('Storage path:', storagePath);
+
+      // Create storage reference
+      const imageRef = ref(storage, storagePath);
+      console.log('Storage reference created');
+      console.log('Storage bucket:', storage.app.options.storageBucket);
+      
+      // Upload to Firebase Storage using data_url to avoid Blob issues on RN
+      console.log('Starting upload to Firebase Storage (data_url)...');
+      const base64 = await FileSystem.readAsStringAsync(imageUri, { encoding: BASE64_ENCODING });
+      const dataUrl = `data:image/jpeg;base64,${base64}`;
+      const uploadResult = await uploadString(imageRef, dataUrl, 'data_url');
+      console.log('Upload complete:', uploadResult.metadata);
+      
+      // Get download URL
+      const photoURL = await getDownloadURL(imageRef);
+      console.log('Download URL obtained:', photoURL);
+
+      // Update Firebase Auth profile
       await updateProfile(auth.currentUser, { photoURL });
-      await setDoc(doc(db, 'users', user.uid), { photoURL }, { merge: true });
+      console.log('Auth profile updated');
+      
+      // Update Firestore users collection with profileImageUrl
+      await setDoc(doc(db, 'users', user.uid), { 
+        photoURL,
+        profileImageUrl: photoURL,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      console.log('Firestore updated');
 
       setUser({ ...user, photoURL });
       return { success: true, photoURL };
     } catch (error) {
+      console.error('Upload error details:');
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      console.error('Error name:', error.name);
+      if (error.serverResponse) {
+        console.error('Server response:', error.serverResponse);
+      }
+      console.error('Full error:', error);
       return { success: false, error: error.message };
     }
   };

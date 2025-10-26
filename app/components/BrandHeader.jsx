@@ -12,26 +12,24 @@ import Animated, {
   FadeInDown,
 } from 'react-native-reanimated';
 import { CartContext } from '../contexts/CartContext';
+import { FavoritesContext } from '../contexts/FavoritesContext';
 import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../constants/theme';
 
 export default function BrandHeader({ 
   showSearch = false, 
   showCart = true,
+  showFavorites = false,
   onSearchChange = null,
   searchValue = '',
 }) {
   const navigation = useNavigation();
   const { cartItems } = useContext(CartContext);
+  const { favorites } = useContext(FavoritesContext);
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const favoritesCount = favorites.length;
 
   const logoScale = useSharedValue(0.5);
   const logoOpacity = useSharedValue(0);
-
-  // Debug: Log cart count
-  useEffect(() => {
-    console.log('🛒 BrandHeader - Cart count:', cartCount);
-    console.log('🛒 BrandHeader - Cart items:', cartItems);
-  }, [cartCount, cartItems]);
 
   useEffect(() => {
     logoOpacity.value = withTiming(1, { duration: 600 });
@@ -55,23 +53,43 @@ export default function BrandHeader({
           <Text style={styles.tagline}>Ice Creams</Text>
         </Animated.View>
 
-        {showCart && (
-          <TouchableOpacity 
-            style={styles.cartButton}
-            onPress={() => navigation.navigate('Cart')}
-            activeOpacity={0.7}
-          >
-            <FontAwesome name="shopping-cart" size={24} color={COLORS.text} />
-            {cartCount > 0 && (
-              <Animated.View 
-                entering={FadeInDown.springify()}
-                style={styles.cartBadge}
-              >
-                <Text style={styles.cartBadgeText}>{cartCount}</Text>
-              </Animated.View>
-            )}
-          </TouchableOpacity>
-        )}
+        <View style={styles.actionsContainer}>
+          {showFavorites && (
+            <TouchableOpacity 
+              style={styles.favoriteButton}
+              onPress={() => navigation.navigate('Favorites')}
+              activeOpacity={0.7}
+            >
+              <FontAwesome name="heart" size={22} color="#FF6B6B" />
+              {favoritesCount > 0 && (
+                <Animated.View 
+                  entering={FadeInDown.springify()}
+                  style={styles.favoriteBadge}
+                >
+                  <Text style={styles.favoriteBadgeText}>{favoritesCount}</Text>
+                </Animated.View>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {showCart && (
+            <TouchableOpacity 
+              style={styles.cartButton}
+              onPress={() => navigation.navigate('Cart')}
+              activeOpacity={0.7}
+            >
+              <FontAwesome name="shopping-cart" size={24} color={COLORS.text} />
+              {cartCount > 0 && (
+                <Animated.View 
+                  entering={FadeInDown.springify()}
+                  style={styles.cartBadge}
+                >
+                  <Text style={styles.cartBadgeText}>{cartCount}</Text>
+                </Animated.View>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Search bar */}
@@ -122,6 +140,32 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginTop: -4,
+  },
+  actionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  favoriteButton: {
+    position: 'relative',
+    padding: SPACING.sm,
+  },
+  favoriteBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#FF6B6B',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  favoriteBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.bold,
   },
   cartButton: {
     position: 'relative',
